@@ -138,8 +138,8 @@ plot(confMatGBM$table, col = confMatGBM$byClass,
 
 ## Select Model to predict the Test Data
 
-### The accuracy of the 3 regression modeling methods above are:    Random Forest : 0.9963. Decision Tree : 0.7368.     GBM : 0.9839
-### Random Forest model will be applied to predict the 20 quiz results (testing dataset) as shown below.
+##### The accuracy of the 3 regression modeling methods above are:    Random Forest : 0.9963. Decision Tree : 0.7368.     GBM : 0.9839
+##### Random Forest model will be applied to predict the 20 quiz results (testing dataset) as shown below.
 ```{r}
 predictTEST <- predict(modFitRandForest, newdata=testData)
 predictTEST
