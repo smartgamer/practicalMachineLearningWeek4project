@@ -1,0 +1,160 @@
+---
+title: "pml_assignment"
+author: "zj"
+date: "July 19, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# 08 Practical machine learning, week4 assignment
+
+# What you should submit
+# 
+# The goal of your project is to predict the manner in which they did the exercise. This is the “classe” variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+# 
+# Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-). You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details.
+```{r }
+getwd()
+setwd("./data")
+getwd()
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+              destfile = "./training.csv", 
+              method = "curl")
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+              destfile = "./testing.csv", 
+              method = "curl")
+list.files()
+```
+
+```{r }
+library(tidyverse)
+library(caret)
+#install.packages("corrplot")
+library(corrplot)
+# download the datasets
+trainData = read_csv("training.csv")
+testData = read_csv("testing.csv")
+```
+
+```{r }
+# create a partition with the training dataset 
+set.seed(100) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+TrainSet <- trainData[inTrain, ]
+ValidationSet  <- trainData[-inTrain, ]
+dim(TrainSet)
+dim(ValidationSet)
+```
+# remove Near Zero variance (NZV) variables and the ID variables as well.
+```{r }
+# remove variables with Nearly Zero Variance
+NZV <- nearZeroVar(TrainSet)
+TrainSet <- TrainSet[, -NZV]
+ValidationSet  <- ValidationSet[, -NZV]
+dim(TrainSet)
+dim(ValidationSet)
+```
+# Get rid of variables with mostly NA
+```{r }
+# remove variables that are mostly NA
+AllNA    <- sapply(TrainSet, function(x) mean(is.na(x))) > 0.95
+TrainSet <- TrainSet[, AllNA==FALSE]
+ValidationSet  <- ValidationSet[, AllNA==FALSE]
+dim(TrainSet)
+dim(ValidationSet)
+```
+# remove columns 1-5
+```{r }
+# remove identification only variables (columns 1 to 5)
+TrainSet <- TrainSet[, -(1:5)]
+ValidationSet  <- ValidationSet[, -(1:5)]
+dim(TrainSet)
+dim(ValidationSet)
+```
+## Correlation Analysis
+
+# A correlation among variables is analysed before proceeding to the modeling procedures.
+```{r }
+
+corMatrix <- cor(TrainSet[, -54],use = "complete.obs")
+corrplot(corMatrix, order = "FPC", method = "color", type = "lower", 
+         tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+```
+
+## build models
+# fit based on Random Forest model 
+```{r }
+set.seed(101)
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modFitRandForest <- train(classe ~ ., data=TrainSet, method="rf", na.action = na.omit,
+                          trControl=controlRF)
+modFitRandForest$finalModel
+# prediction on Test dataset
+predictRandForest <- predict(modFitRandForest, newdata=ValidationSet)
+confMatRandForest <- confusionMatrix(predictRandForest, ValidationSet$classe)
+confMatRandForest
+# plot matrix results
+plot(confMatRandForest$table, col = confMatRandForest$byClass, 
+     main = paste("Random Forest - Accuracy =",
+                  round(confMatRandForest$overall['Accuracy'], 4)))
+
+```
+#Decision Trees
+```{r}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+set.seed(102)
+modFitDecTree <- rpart(classe ~ ., data=TrainSet, method="class")
+fancyRpartPlot(modFitDecTree)
+# prediction on Test dataset
+predictDecTree <- predict(modFitDecTree, newdata=ValidationSet, type="class")
+confMatDecTree <- confusionMatrix(predictDecTree, ValidationSet$classe)
+confMatDecTree
+# plot matrix results
+plot(confMatDecTree$table, col = confMatDecTree$byClass, 
+     main = paste("Decision Tree - Accuracy =",
+                  round(confMatDecTree$overall['Accuracy'], 4)))
+```
+#Generalized Boosted Model
+```{r}
+set.seed(12345)
+controlGBM <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+modFitGBM  <- train(classe ~ ., data=TrainSet, method = "gbm",na.action = na.omit,
+                    trControl = controlGBM, verbose = FALSE)
+modFitGBM$finalModel
+# prediction on Test dataset
+predictGBM <- predict(modFitGBM, newdata=ValidationSet)
+confMatGBM <- confusionMatrix(predictGBM, ValidationSet$classe)
+confMatGBM
+# plot matrix results
+plot(confMatGBM$table, col = confMatGBM$byClass, 
+     main = paste("GBM - Accuracy =", round(confMatGBM$overall['Accuracy'], 4)))
+```
+
+## Select Model to predict the Test Data
+
+#The accuracy of the 3 regression modeling methods above are:    Random Forest : 0.9963. Decision Tree : 0.7368.     GBM : 0.9839
+#Random Forest model will be applied to predict the 20 quiz results (testing dataset) as shown below.
+```{r}
+predictTEST <- predict(modFitRandForest, newdata=testData)
+predictTEST
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
